@@ -1,0 +1,183 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head> 
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="Weather app.css" />
+    <title>programaming lango Accordion App</title>
+
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+</head>
+
+<body>
+    <div id="root">the app is running</div>
+</body>
+<script type="text/babel">
+    function Day({ date, max, min, code }) {
+  return (
+    <li>
+      <span>{formatDay(date)}</span>
+      <span className="max">{max}</span>
+      <span className="min">{min}</span>
+      <span>{getWeatherIcon(code)}</span>
+    </li>
+  );
+}
+const DayList = ({ weather }) => {
+  const {
+    temperature_2m_max: max,
+    temperature_2m_min: min,
+    time: dates,
+    weathercode: codes,
+  } = weather;
+  return (
+      <ul className="weather">
+        {dates.map((date, i) => (
+          <Day
+            date={date}
+            max={max.at(i)}
+            min={min.at(i)}
+            code={codes.at(i)}
+            key={date}
+            isToday={i === 0}
+          />
+        ))}
+      </ul>
+  );
+};
+const Loading = () => {
+  return <div className="loading">Loading...</div>;
+};
+const Search = ({cityName,setcityName}) => {
+ function handleCityName(e) {
+    e.preventDefault();
+    setcityName(e.target.value);
+  }
+  return (
+    <div className="serach-contatiner">
+      <input
+        value={cityName}
+        onChange={(e) => handleCityName(e)}
+        placeholder="Search City"
+        type="text"
+      />
+      <button>Search</button>
+    </div>
+  );
+};
+const Toady = ({ weather, location }) => {
+  const {
+    temperature_2m_max: max,
+    time: dates,
+    weathercode: code,
+  } = weather;
+  return (
+    <div className="today-container">
+      <div className="max-degree">
+        <h1>{max[0]}</h1>
+        <p className="sign">{getWeatherIcon(code[0])}</p>
+      </div>
+      <div className="today">
+        <h1>Today</h1>
+        <p>{location}</p>
+        <p>{formatDay(dates[0])}</p>
+      </div>
+    </div>
+  );
+};
+ function getWeatherIcon(wmoCode) {
+  const icons = new Map([
+    [[0], "☀️"],
+    [[1], "🌤"],
+    [[2], "⛅️"],
+    [[3], "☁️"],
+    [[45, 48], "🌫"],
+    [[51, 56, 61, 66, 80], "🌦"],
+    [[53, 55, 63, 65, 57, 67, 81, 82], "🌧"],
+    [[71, 73, 75, 77, 85, 86], "🌨"],
+    [[95], "🌩"],
+    [[96, 99], "⛈"],
+  ]);
+  const arr = [...icons.keys()].find((key) => key.includes(wmoCode));
+  if (!arr) return "NOT FOUND";
+  return icons.get(arr);
+}
+
+
+ function formatDay(dateStr) {
+  return new Intl.DateTimeFormat("en", {
+    weekday: "short",
+  }).format(new Date(dateStr));
+}
+const App = () => {
+  const [city, setcity] = React.useState("LONDON");
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState("");
+  const [weather, setWeather] = React.useState();
+  const [displayLocation, setDisplayLocation] = React.useState("");
+
+  function convertToFlag(countryCode) {
+    const codePoints = countryCode
+      .toUpperCase()
+      .split("")
+      .map((char) => 127397 + char.charCodeAt());
+    return String.fromCodePoint(...codePoints);
+  }
+  React.useEffect(
+    function () {
+      const fetchWeather = async () => {
+        try {
+          setIsLoading(true);
+          // 1) Getting location (geocoding)
+          const geoRes = await fetch(
+            `https://geocoding-api.open-meteo.com/v1/search?name=${city}`
+          );
+          const geoData = await geoRes.json();
+          if (!geoData.results) throw new Error("Location not found");
+          const { latitude, longitude, timezone, name, country_code } =
+            geoData.results.at(0);
+          setDisplayLocation(`${name} ${convertToFlag(country_code)}`);
+
+          // 2) Getting actual weather
+          const weatherRes = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&timezone=${timezone}&daily=weathercode,temperature_2m_max,temperature_2m_min`
+          );
+          const weatherData = await weatherRes.json();
+          setWeather(weatherData.daily);
+        } catch (err) {
+          setError(err.messege);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchWeather();
+    },
+    [city]
+  );
+
+  return (
+    <div className="app">
+      <Search cityName={city} setcityName={setcity} />
+      {isLoading && <Loading />}
+      {weather && <Toady location={displayLocation} weather={weather} />}
+      {weather && <DayList weather={weather} />}
+    </div>
+  );
+};
+
+     ReactDOM.render(
+      <App/>,
+      document.getElementById('root')
+    );
+
+
+     </script>
+
+</html>
